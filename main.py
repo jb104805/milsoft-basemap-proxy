@@ -14,36 +14,35 @@ UTAH_COUNTY_URL = (
 TILE_SIZE = 256
 
 
-def tile_to_bbox(z: int, x: int, y: int):
-    """Convert XYZ tile coordinates to WGS84 bounding box (lon/lat)."""
+def tile_to_web_mercator(z: int, x: int, y: int):
+    """Convert XYZ tile coordinates to Web Mercator (EPSG:3857) bounding box."""
     n = 2.0 ** z
 
-    lon_min = x / n * 360.0 - 180.0
-    lon_max = (x + 1) / n * 360.0 - 180.0
+    # Tile size in Web Mercator meters
+    world_size = 20037508.3427892
+    tile_width = 2 * world_size / n
 
-    lat_min_rad = math.atan(math.sinh(math.pi * (1 - 2 * (y + 1) / n)))
-    lat_max_rad = math.atan(math.sinh(math.pi * (1 - 2 * y / n)))
+    xmin = x * tile_width - world_size
+    xmax = xmin + tile_width
+    ymax = world_size - y * tile_width
+    ymin = ymax - tile_width
 
-    lat_min = math.degrees(lat_min_rad)
-    lat_max = math.degrees(lat_max_rad)
-
-    return lon_min, lat_min, lon_max, lat_max
+    return xmin, ymin, xmax, ymax
 
 
 @app.get("/tile/{z}/{y}/{x}")
 async def get_tile(z: int, y: int, x: int):
     """
     WindMil requests tiles as /tile/[z]/[y]/[x].
-    We convert to a bbox and call Utah County's Export Image endpoint.
-    No y-flip — WindMil sends standard XYZ y coordinates.
+    We convert to a Web Mercator bbox and call Utah County's Export Image endpoint.
     """
-    lon_min, lat_min, lon_max, lat_max = tile_to_bbox(z, x, y)
+    xmin, ymin, xmax, ymax = tile_to_web_mercator(z, x, y)
 
     params = {
-        "bbox": f"{lon_min},{lat_min},{lon_max},{lat_max}",
-        "bboxSR": "4326",
+        "bbox": f"{xmin},{ymin},{xmax},{ymax}",
+        "bboxSR": "3857",
         "size": f"{TILE_SIZE},{TILE_SIZE}",
-        "imageSR": "4326",
+        "imageSR": "3857",
         "format": "png",
         "pixelType": "U8",
         "noDataInterpretation": "esriNoDataMatchAny",

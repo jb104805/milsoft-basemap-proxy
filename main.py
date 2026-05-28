@@ -36,7 +36,9 @@ async def get_tile(z: int, y: int, x: int):
     WindMil requests tiles as /tile/[z]/[y]/[x].
     We convert to a bbox and call Utah County's Export Image endpoint.
     """
-    lon_min, lat_min, lon_max, lat_max = tile_to_bbox(z, x, y)
+    # WindMil uses TMS-style y (0 at south); flip to XYZ (0 at north)
+    y_xyz = (2 ** z - 1) - y
+    lon_min, lat_min, lon_max, lat_max = tile_to_bbox(z, x, y_xyz)
 
     params = {
         "bbox": f"{lon_min},{lat_min},{lon_max},{lat_max}",
